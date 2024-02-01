@@ -1,13 +1,11 @@
 import requests
-from time import time,sleep
+from time import sleep
 import random
 from multiprocessing import Process
 import boto3
 import json
 import sqlalchemy
 from sqlalchemy import text
-from func_timeout import func_timeout, FunctionTimedOut
-
 
 
 random.seed(100)
@@ -31,24 +29,8 @@ class AWSDBConnector:
 new_connector = AWSDBConnector()
 
 
-def timeout_decorator(seconds):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except FunctionTimedOut:
-                print(f"{func.__name__} took longer than {seconds} seconds and has been terminated.")
-                return None
-
-        return wrapper
-
-    return decorator
-
-@timeout_decorator(30)
-def run_infinite_post_data_loop(duration = 30):
-    start_time = time()
-    while time()-start_time < duration:
+def run_infinite_post_data_loop():
+    while True:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
@@ -76,53 +58,40 @@ def run_infinite_post_data_loop(duration = 30):
             print(pin_result)
             print(geo_result)
             print(user_result)
+
+            invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin"
+            #To send JSON messages you need to follow this structure
+            payload = json.dumps({
+                "records": [
+                {
+            #Data should be send as pairs of column_name:value, with different columns separated by commas       
+                "value": {"index": pin_result["index"],
+                          "unique_id": pin_result["unique_id"], 
+                          "title": pin_result["title"], 
+                          "description": pin_result["description"],
+                          "poster_name": pin_result["poster_name"],
+                          "follower_count": pin_result["follower_count"],
+                          "tag_list": pin_result["tag_list"],
+                          "is_image_or_video": pin_result["is_image_or_video"],
+                          "image_src": pin_result["image_src"],
+                          "downloaded": pin_result["downloaded"],
+                          "save_location": pin_result["save_location"],
+                          "category": pin_result["category"]}
+                }
+                         ]
+                                })
+
+            headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+            response = requests.request("POST", invoke_url, headers=headers, data=payload)
             
+            print(response.status_code)
             
 
-#%%
+
 if __name__ == "__main__":
-    from user_posting_emulation import run_infinite_post_data_loop
     run_infinite_post_data_loop()
     print('Working')
     
-#%% # Code chunk to identify tables in the AWS store
-if __name__ == "__main__":
-    from sqlalchemy import inspect
-    from user_posting_emulation import AWSDBConnector
-    new_connector = AWSDBConnector()
-    db_engine = new_connector.create_db_connector()
-    inspector = inspect(db_engine)
-    tables = inspector.get_table_names()
-    # Print the available tables
-    print("Available Tables:")
-    for table_name in tables:
-        print(table_name)
-    # Remember to close the connection after use
-    db_engine.dispose()
-
-# %% # Code chunk to view first 10 rows of pinterest_data
-if __name__ == "__main__":
-    from sqlalchemy import text
-    from user_posting_emulation import AWSDBConnector
-    new_connector = AWSDBConnector()
-    db_engine = new_connector.create_db_connector()
     
-    with db_engine.connect() as connection:
-        result = connection.execute(text("SELECT * FROM pinterest_data LIMIT 10"))
-        for row in result:
-            print(row)
 
-# %%
-if __name__ == "__main__":
-    import pandas as pd
-    from user_postin    g_emulation import AWSDBConnector
-    new_connector = AWSDBConnector()
-    db_engine = new_connector.create_db_connector()
-    
-    location = pd.read_sql_query('''SELECT * FROM geolocation_data LIMIT 10''',db_engine)
-    print(location)
-    
-    pinterest = pd.read_sql_table('pinterest_data',db_engine)
-    print(pinterest.head(10))
 
-# %%
