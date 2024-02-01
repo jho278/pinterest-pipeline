@@ -1,5 +1,5 @@
 import requests
-from time import sleep
+from time import time,sleep
 import random
 from multiprocessing import Process
 import boto3
@@ -28,12 +28,28 @@ class AWSDBConnector:
 
 new_connector = AWSDBConnector()
 
+def timeout_decorator(seconds):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                return result
+            except FunctionTimedOut:
+                print(f"{func.__name__} took longer than {seconds} seconds and has been terminated.")
+                return None
 
-def run_infinite_post_data_loop():
-    while True:
+        return wrapper
+
+    return decorator
+
+@timeout_decorator(30)
+def run_infinite_post_data_loop(duration = 5):
+    start_time = time()
+    while time()-start_time < duration:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
+
 
         with engine.connect() as connection:
 
@@ -89,6 +105,7 @@ def run_infinite_post_data_loop():
 
 
 if __name__ == "__main__":
+    from user_posting_emulation import run_infinite_post_data_loop
     run_infinite_post_data_loop()
     print('Working')
     
