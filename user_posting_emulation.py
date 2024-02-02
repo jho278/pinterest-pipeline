@@ -6,6 +6,7 @@ import boto3
 import json
 import sqlalchemy
 from sqlalchemy import text
+from func_timeout import func_timeout, FunctionTimedOut
 
 
 random.seed(100)
@@ -43,8 +44,9 @@ def timeout_decorator(seconds):
     return decorator
 
 @timeout_decorator(30)
-def run_infinite_post_data_loop(duration = 5):
+def run_infinite_post_data_loop(duration = 30):
     start_time = time()
+    pin_results = []
     while time()-start_time < duration:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
@@ -58,6 +60,32 @@ def run_infinite_post_data_loop(duration = 5):
             
             for row in pin_selected_row:
                 pin_result = dict(row._mapping)
+                
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin"  
+                #To send JSON messages you need to follow this structure
+                pinterest_payload = json.dumps({
+                    "records": [
+                        {
+                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
+                        "value": {"index": pin_result["index"],
+                                  "unique_id": pin_result["unique_id"], 
+                                  "title": pin_result["title"], 
+                                  "description": pin_result["description"],
+                                  "poster_name": pin_result["poster_name"],
+                                  "follower_count": pin_result["follower_count"],
+                                  "tag_list": pin_result["tag_list"],
+                                  "is_image_or_video": pin_result["is_image_or_video"],
+                                  "image_src": pin_result["image_src"],
+                                  "downloaded": pin_result["downloaded"],
+                                  "save_location": pin_result["save_location"],
+                                  "category": pin_result["category"]}
+                        }
+                            ]
+                                })
+
+                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+                response = requests.request("POST", invoke_url, headers=headers, data=pinterest_payload)
+                print(response.status_code)
 
             geo_string = text(f"SELECT * FROM geolocation_data LIMIT {random_row}, 1")
             geo_selected_row = connection.execute(geo_string)
@@ -72,43 +100,52 @@ def run_infinite_post_data_loop(duration = 5):
                 user_result = dict(row._mapping)
             
             print(pin_result)
-            print(geo_result)
-            print(user_result)
-
-            invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin"
-            #To send JSON messages you need to follow this structure
-            payload = json.dumps({
-                "records": [
-                {
-            #Data should be send as pairs of column_name:value, with different columns separated by commas       
-                "value": {"index": pin_result["index"],
-                          "unique_id": pin_result["unique_id"], 
-                          "title": pin_result["title"], 
-                          "description": pin_result["description"],
-                          "poster_name": pin_result["poster_name"],
-                          "follower_count": pin_result["follower_count"],
-                          "tag_list": pin_result["tag_list"],
-                          "is_image_or_video": pin_result["is_image_or_video"],
-                          "image_src": pin_result["image_src"],
-                          "downloaded": pin_result["downloaded"],
-                          "save_location": pin_result["save_location"],
-                          "category": pin_result["category"]}
-                }
-                         ]
-                                })
-
-            headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-            response = requests.request("POST", invoke_url, headers=headers, data=payload)
+            #print(geo_result)
+            #print(user_result)
             
-            print(response.status_code)
+        return pin_result
+    
             
-
-
+            
+#  %%
 if __name__ == "__main__":
     from user_posting_emulation import run_infinite_post_data_loop
-    run_infinite_post_data_loop()
+    result = run_infinite_post_data_loop()
     print('Working')
     
     
 
 
+
+# invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin"  
+#     #To send JSON messages you need to follow this structure
+#     payload = json.dumps({
+#         "records": [
+#             {
+#             #Data should be send as pairs of column_name:value, with different columns separated by commas       
+#             "value": {"index": pin_result["index"],
+#                 "unique_id": pin_result["unique_id"], 
+#                 "title": pin_result["title"], 
+#                 "description": pin_result["description"],
+#                 "poster_name": pin_result["poster_name"],
+#                 "follower_count": pin_result["follower_count"],
+#                 "tag_list": pin_result["tag_list"],
+#                 "is_image_or_video": pin_result["is_image_or_video"],
+#                 "image_src": pin_result["image_src"],
+#                 "downloaded": pin_result["downloaded"],
+#                 "save_location": pin_result["save_location"],
+#                 "category": pin_result["category"]}
+#             }
+#                 ]
+#                     })
+
+#     headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+#     response = requests.request("POST", invoke_url, headers=headers, data=payload)
+            
+#     print(response.status_code)
+    
+    
+
+
+
+# %%
