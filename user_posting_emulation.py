@@ -7,6 +7,7 @@ import json
 import sqlalchemy
 from sqlalchemy import text
 from func_timeout import func_timeout, FunctionTimedOut
+import yaml
 
 
 random.seed(100)
@@ -15,43 +16,32 @@ random.seed(100)
 class AWSDBConnector:
 
     def __init__(self):
-
-        self.HOST = "pinterestdbreadonly.cq2e8zno855e.eu-west-1.rds.amazonaws.com"
-        self.USER = 'project_user'
-        self.PASSWORD = ':t%;yCY3Yjg'
-        self.DATABASE = 'pinterest_data'
-        self.PORT = 3306
+        pass
+    
+    def read_db_creds(self):
+        with open('cred.yaml','r') as file:
+            self.credentials = yaml.safe_load(file)
+        return self.credentials
         
     def create_db_connector(self):
-        engine = sqlalchemy.create_engine(f"mysql+pymysql://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}?charset=utf8mb4")
+        self.read_db_creds()
+        HOST = self.credentials['HOST']
+        USER = self.credentials['USER']
+        PASSWORD = self.credentials['PASSWORD']
+        DATABASE = self.credentials['DATABASE']
+        PORT = self.credentials['PORT']
+        
+        engine = sqlalchemy.create_engine(f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}?charset=utf8mb4")
         return engine
 
 
 new_connector = AWSDBConnector()
 
-def timeout_decorator(seconds):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except FunctionTimedOut:
-                print(f"{func.__name__} took longer than {seconds} seconds and has been terminated.")
-                return None
-
-        return wrapper
-
-    return decorator
-
-@timeout_decorator(30)
-def run_infinite_post_data_loop(duration = 30):
-    start_time = time()
-    pin_results = []
-    while time()-start_time < duration:
+def run_infinite_post_data_loop():
+    while True:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
-
 
         with engine.connect() as connection:
 
@@ -92,18 +82,53 @@ def run_infinite_post_data_loop(duration = 30):
             
             for row in geo_selected_row:
                 geo_result = dict(row._mapping)
+                # Convert the timestamp to ISO format
+                geo_result["timestamp"] = geo_result["timestamp"].isoformat()
+
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.geo"  
+                #To send JSON messages you need to follow this structure
+                geo_payload = json.dumps({
+                    "records": [
+                        {
+                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
+                        "value": {"index": geo_result["ind"],
+                                  "timestamp": geo_result["timestamp"], 
+                                  "latitude": geo_result["latitude"], 
+                                  "longitude": geo_result["longitude"],
+                                  "country": geo_result["country"]}
+                        }
+                            ]
+                                })
+
+                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+                response = requests.request("POST", invoke_url, headers=headers, data=geo_payload)
+                print(response.status_code)
 
             user_string = text(f"SELECT * FROM user_data LIMIT {random_row}, 1")
             user_selected_row = connection.execute(user_string)
             
             for row in user_selected_row:
                 user_result = dict(row._mapping)
-            
-            print(pin_result)
-            #print(geo_result)
-            #print(user_result)
-            
-        return pin_result
+                user_result["date_joined"] = user_result["date_joined"].isoformat()
+                
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.user"  
+                #To send JSON messages you need to follow this structure
+                user_payload = json.dumps({
+                    "records": [
+                        {
+                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
+                        "value": {"index": user_result["ind"],
+                                  "first_name": user_result["first_name"], 
+                                  "last_name": user_result["last_name"], 
+                                  "age": user_result["age"],
+                                  "date_joined": user_result["date_joined"]}
+                        }
+                            ]
+                                })
+
+                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+                response = requests.request("POST", invoke_url, headers=headers, data=user_payload)
+                print(response.status_code)
     
             
             
@@ -112,6 +137,9 @@ if __name__ == "__main__":
     from user_posting_emulation import run_infinite_post_data_loop
     result = run_infinite_post_data_loop()
     print('Working')
+
+# %% 
+
     
     
 
