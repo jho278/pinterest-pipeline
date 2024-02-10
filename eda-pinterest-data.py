@@ -7,6 +7,7 @@ import json
 import sqlalchemy
 from sqlalchemy import text
 from func_timeout import func_timeout, FunctionTimedOut
+import yaml
 
 
 
@@ -16,15 +17,22 @@ random.seed(100)
 class AWSDBConnector:
 
     def __init__(self):
-
-        self.HOST = "pinterestdbreadonly.cq2e8zno855e.eu-west-1.rds.amazonaws.com"
-        self.USER = 'project_user'
-        self.PASSWORD = ':t%;yCY3Yjg'
-        self.DATABASE = 'pinterest_data'
-        self.PORT = 3306
+        pass
+    
+    def read_db_creds(self):
+        with open('cred.yaml','r') as file:
+            self.credentials = yaml.safe_load(file)
+        return self.credentials
         
     def create_db_connector(self):
-        engine = sqlalchemy.create_engine(f"mysql+pymysql://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}?charset=utf8mb4")
+        self.read_db_creds()
+        HOST = self.credentials['HOST']
+        USER = self.credentials['USER']
+        PASSWORD = self.credentials['PASSWORD']
+        DATABASE = self.credentials['DATABASE']
+        PORT = self.credentials['PORT']
+        
+        engine = sqlalchemy.create_engine(f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}?charset=utf8mb4")
         return engine
 
 
@@ -108,21 +116,22 @@ if __name__ == "__main__":
     db_engine = new_connector.create_db_connector()
     
     with db_engine.connect() as connection:
-        result = connection.execute(text("SELECT * FROM pinterest_data LIMIT 10"))
+        result = connection.execute(text("SELECT * FROM geolocation_data LIMIT 10"))
         for row in result:
             print(row)
 
 # %%
 if __name__ == "__main__":
     import pandas as pd
-    from user_postin    g_emulation import AWSDBConnector
+    from user_posting_emulation import AWSDBConnector
     new_connector = AWSDBConnector()
     db_engine = new_connector.create_db_connector()
     
     location = pd.read_sql_query('''SELECT * FROM geolocation_data LIMIT 10''',db_engine)
     print(location)
     
-    pinterest = pd.read_sql_table('pinterest_data',db_engine)
-    print(pinterest.head(10))
+    user = pd.read_sql_table('user_data',db_engine)
+    print(user.columns) 
+    print(user.head(10))
 
 # %%
