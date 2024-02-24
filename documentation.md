@@ -68,9 +68,6 @@ repeat for geo and user
 - The IAM role can have actions that enable the user to list, delete and get the location of said bucket. The role enables necessary permissions to write to destination bucket. 
 - The VPC endpoint is a virtual private cloud
 
-# endpoint url
-http://ec2-34-235-131-58.compute-1.amazonaws.com:8082/{proxy}
-
 # Connect EC2 to S3. then create plugin
 - A plugin will contain the code that defines the logic of our connector. This requires downloading Confluent.io Amazon S3 connector. This connector is a sink connector that exports data from kafka topics to S3 objects in either JSON, Avro or Bytes format
 - In the EC2 instance, download the above within a folder called kafka-connect-s3. Copy the connector to the S3 bucket 
@@ -81,8 +78,25 @@ http://ec2-34-235-131-58.compute-1.amazonaws.com:8082/{proxy}
 - Within MSK Connect, create connector. Select plugin created from above and configure the settings. topics.regex == user-id, s3.bucket.name = bucket.  selecting the EC2-iam-ec2-access
 - After creating both plugin and connector, should be able to send data from MSK to S3.
 
+# To replicate Pinterest's experimental data pipeline, an API is needed to send data to the MSK cluster, which in turn stores it in an S3 bucket using the connector. 
+- The Kafka REST Proxy integration provides a RESTful interface to a Kafka cluster. This enables simple produce and consume of messages.
+
 # Create REST proxy API
-Enables easier consuming and production of messages, view state of cluster, perform adminstrative tasks without using native kafka protocals or clients
+- Standard for client-server communication. REST APIs have higher latency rate than HTTP APIs which is bad. However, they have full endpoint support, can be edge-optimised and supports regional and private endpoints.
+- A proxy integration provide the selected integration access to many resources and features at once, without specifiying multiple resource paths using the greedy parameter {proxy+}
+- Consider an API with the following resource paths:
+    - car/{type}/{subtype}/{parts}
+    - car/{type}/{subtype}/{colour}
+    - car/{type}/{subtype}/{colour}/{cost}
+- Tedious to specify these paths individually. With the proxy resource, you can provide your integration with access to all available resources. 
+- When integration is created and configured, you can access method execution. This shows execution order of the methods. There are four steps:
+    - Method request: step used to configure security settings (API keys), query-string parameters and request headers
+    - integration request: The gateway makes a request to the integration, passing along request data and transforming if necessary
+    - Integration response: Result from the backend. Results are transformed if required and sent to the method response
+    - Method response: Contains output of the API and served to user. Usually contains HTTP status code, headers and a body. 
+
+# Deploy API
+- Make note of the invoke url
 
 # invoke api url
 https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin
@@ -92,9 +106,45 @@ https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.
 0a54b96ac143.geo
 0a54b96ac143.user
 
-# Starting REST proxy within the confluent bin folder
-./kafka-rest-start /home/ec2-user/confluent-7.2.0/etc/kafka-rest/kafka-rest.properties
+# Kafka REST Proxy integration type set to HTTP
+- HTTP proxy integration is a good way of building APIs enabling web applications to access multiple resources on the integrated HTTP endpoint. API Gateway passes client-submitted method requests to the backend and in turn the backend parses th eincoming data request to determine the return responses.
+- The endpoint URL should be set to the Kafka client amazon EC2 instance publicDNS, found in the EC2 console.
 
+# endpoint url
+http://ec2-34-235-131-58.compute-1.amazonaws.com:8082/{proxy}
+
+# Starting REST proxy within the confluent bin folder
+- To consume data using MSK from the API created, additional packages are required in the client EC2 machine to communicate with the MSK cluster.
+- To configure the REST proxy to communicate with desired MSK cluster and to perform IAM authentication, you need to configure the kafka-rest.properties file.
+- add the bootstrap.server and zookeeper.connect variables in the file and ensure it matches with the strings in the MSK cluster.
+- Add the IAM MSK authentication package by adding the relevant code to the kafka-rest.properties file
+- This is slightly different to the kafka client.properties. as all configurations should be pre-fixed with client to enable communication between REST proxy and cluser brokers. 
+- Within the confluent/bin folder, run the below command
+- ./kafka-rest-start /home/ec2-user/confluent-7.2.0/etc/kafka-rest/kafka-rest.properties
+
+# invoke api url
+- After deploying the API, make note of the invoke URL. The external kafka REST proxy exposed via API gateway is below. This url is used to send messages through API gateway into the user's consumer
+https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/topics/0a54b96ac143.pin
+
+# API testing
+import requests
+import json
+
+example_df = {"index": 1, "name": "Maya", "age": 25, "role": "engineer"}
+
+invoke_url = "https://YourAPIInvokeURL/YourDeploymentStage/topics/YourTopicName"
+#To send JSON messages you need to follow this structure
+payload = json.dumps({
+    "records": [
+        {
+        #Data should be send as pairs of column_name:value, with different columns separated by commas       
+        "value": {"index": example_df["index"], "name": example_df["name"], "age": example_df["age"], "role": example_df["role"]}
+        }
+    ]
+})
+
+headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+response = requests.request("POST", invoke_url, headers=headers, data=payload)
 # Git
 Create git repository on github and copy url
 git init
