@@ -49,14 +49,13 @@ def run_infinite_post_data_loop():
             
             for row in pin_selected_row:
                 pin_result = dict(row._mapping)
-                
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-pin"  
+                # invoke url for one record, if you want to put more records replace record with records
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-pin/records"
+
                 #To send JSON messages you need to follow this structure
-                pinterest_payload = json.dumps({
-                    "records": [
-                        {
-                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
-                        "value": {"index": pin_result["index"],
+                payload = json.dumps({
+                "StreamName": "streaming-0a54b96ac143-pin",
+                "Data": {"index": pin_result["index"],
                                   "unique_id": pin_result["unique_id"], 
                                   "title": pin_result["title"], 
                                   "description": pin_result["description"],
@@ -67,13 +66,13 @@ def run_infinite_post_data_loop():
                                   "image_src": pin_result["image_src"],
                                   "downloaded": pin_result["downloaded"],
                                   "save_location": pin_result["save_location"],
-                                  "category": pin_result["category"]}
-                        }
-                            ]
-                                })
+                                  "category": pin_result["category"]},
+                                  "PartitionKey": "pin"
+                                  })
 
-                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-                response = requests.request("POST", invoke_url, headers=headers, data=pinterest_payload)
+                headers = {'Content-Type': 'application/json'}
+
+                response = requests.request("PUT", invoke_url, headers=headers, data=payload)
                 print(response.status_code)
                 print(response.content)
 
@@ -85,23 +84,23 @@ def run_infinite_post_data_loop():
                 # Convert the timestamp to ISO format
                 geo_result["timestamp"] = geo_result["timestamp"].isoformat()
 
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-geo"  
+                # invoke url for one record, if you want to put more records replace record with records
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-geo/records"
+
                 #To send JSON messages you need to follow this structure
-                geo_payload = json.dumps({
-                    "records": [
-                        {
-                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
-                        "value": {"index": geo_result["ind"],
+                payload = json.dumps({
+                "StreamName": "streaming-0a54b96ac143-geo",
+                "Data": {"index": geo_result["ind"],
                                   "timestamp": geo_result["timestamp"], 
                                   "latitude": geo_result["latitude"], 
                                   "longitude": geo_result["longitude"],
-                                  "country": geo_result["country"]}
-                        }
-                            ]
+                                  "country": geo_result["country"]},
+                                  "PartitionKey": "geo"
                                 })
 
-                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-                response = requests.request("POST", invoke_url, headers=headers, data=geo_payload)
+                headers = {'Content-Type': 'application/json'}
+
+                response = requests.request("PUT", invoke_url, headers=headers, data=payload)
                 print(response.status_code)
 
             user_string = text(f"SELECT * FROM user_data LIMIT {random_row}, 1")
@@ -111,23 +110,23 @@ def run_infinite_post_data_loop():
                 user_result = dict(row._mapping)
                 user_result["date_joined"] = user_result["date_joined"].isoformat()
                 
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-user"  
+                # invoke url for one record, if you want to put more records replace record with records
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-user/records"
+
                 #To send JSON messages you need to follow this structure
-                user_payload = json.dumps({
-                    "records": [
-                        {
-                        #Data should be send as pairs of column_name:value, with different columns separated by commas       
-                        "value": {"index": user_result["ind"],
+                payload = json.dumps({
+                "StreamName": "streaming-0a54b96ac143-user",
+                "Data": {"index": user_result["ind"],
                                   "first_name": user_result["first_name"], 
                                   "last_name": user_result["last_name"], 
                                   "age": user_result["age"],
-                                  "date_joined": user_result["date_joined"]}
-                        }
-                            ]
-                                })
+                                  "date_joined": user_result["date_joined"]},
+                                  "PartitionKey": "user"
+                                  })
 
-                headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-                response = requests.request("POST", invoke_url, headers=headers, data=user_payload)
+                headers = {'Content-Type': 'application/json'}
+
+                response = requests.request("PUT", invoke_url, headers=headers, data=payload)
                 print(response.status_code)
     
             
