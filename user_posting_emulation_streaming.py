@@ -1,3 +1,4 @@
+# %%
 import requests
 from time import time,sleep
 import random
@@ -50,7 +51,7 @@ def run_infinite_post_data_loop():
             for row in pin_selected_row:
                 pin_result = dict(row._mapping)
                 # invoke url for one record, if you want to put more records replace record with records
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-pin/records"
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-pin/record"
 
                 #To send JSON messages you need to follow this structure
                 payload = json.dumps({
@@ -85,7 +86,7 @@ def run_infinite_post_data_loop():
                 geo_result["timestamp"] = geo_result["timestamp"].isoformat()
 
                 # invoke url for one record, if you want to put more records replace record with records
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-geo/records"
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-geo/record"
 
                 #To send JSON messages you need to follow this structure
                 payload = json.dumps({
@@ -111,7 +112,7 @@ def run_infinite_post_data_loop():
                 user_result["date_joined"] = user_result["date_joined"].isoformat()
                 
                 # invoke url for one record, if you want to put more records replace record with records
-                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-user/records"
+                invoke_url = "https://c9joj9e3ij.execute-api.us-east-1.amazonaws.com/test/streams/streaming-0a54b96ac143-user/record"
 
                 #To send JSON messages you need to follow this structure
                 payload = json.dumps({
